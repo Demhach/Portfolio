@@ -1,0 +1,2502 @@
+---
+title: "Briefing Paper"
+editor: visual
+date: "`r Sys.Date()`"
+
+format: 
+  html:
+    toc: true  # Enable table of contents
+    toc-title: "Table of Content"  # Set the title of the ToC
+    toc-depth: 2  # Set the depth of headers (h1 and h2)
+    toc-location: right
+    embed-resources: true
+    smooth-scroll: true
+    lightbox: true
+
+execute:
+  echo: false      # Hide code
+  warning: false   # Hide warnings
+  message: false   # Hide messages
+  results: hide    # Hide output
+  
+theme:
+  light: flatly
+  dark: darkly
+---
+
+```{r}
+#| echo: false
+#| results: hide
+#| message: false
+#| warning: false
+library(readxl)
+library(writexl)
+library(janitor)
+library(dplyr)
+library(tidyr)
+library(janitor)
+#install.packages("ggplot2")
+#install.packages("kableExtra")
+library(kableExtra)
+library(knitr)
+library(lubridate)
+library(stringr)
+#install.packages("quantmod")
+library(quantmod)
+#install.packages("outliers")
+library(outliers)
+library(ggplot2)
+library(htmltools)
+
+#Loading the data frame
+df <- read_excel("../Samples/agg_briefing_paper.xlsx", col_names = FALSE)
+
+#Setting up the data frame
+
+titles <- df[1:2,]
+
+colnames(df) <- df [2,]
+
+df_1 <- df[-c(1,2),]
+
+#converting all numeric date variables to dates
+
+df_1 <- df_1 %>% 
+  mutate(across(c(`_submission_time`,today, Q45_1, Q25,Q165, Q141_3, S1_3, S2_3, S3_3, S4_3), ~ as.numeric(.))) %>%
+  mutate(across(c(`_submission_time`,today, Q45_1), ~ excel_numeric_to_date(.)))%>%
+  mutate(Q133 = ifelse(grepl("^Yes",Q133), "Yes", Q133))%>%
+  mutate(Q14 = if_else(Q14 == "Sikasso", "Sikasso city", Q14))
+```
+
+# Grouping Variables
+
+```{r}
+df_1 %>% 
+  mutate(Q133 = ifelse(grepl("^Yes",Q133), "Yes", Q133)) %>%
+  tabyl(Q133, Q27) %>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "all") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  
+  #Nice formatting
+  adorn_title(row_name = "Smuggler use", col_name = "Gender", "combined") %>%
+  
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Grouping Variables","","",""),align = "l")
+```
+
+# Profiling
+
+## Q13 - country of interview
+
+```{r}
+df_1 %>% 
+  tabyl(Q13,Q27) %>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "all") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Country ", col_name = " Gender", "combined") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+## Q14 - Place of interview
+
+```{r}
+tabyl_result <- df_1 %>%
+  tabyl(Q14, Q133, Q27) 
+
+total_tabyl <- df_1 %>%
+  tabyl(Q14) %>%
+  arrange(desc(n))%>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Place of interview", "", ""),align = "l")
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%
+  arrange(desc(Yes+No))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Location ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  arrange(desc(Yes+No))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Location ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+total_tabyl
+male_table
+female_table
+
+```
+
+## Q25 - Age - Summary
+
+```{r}
+df_1 %>%
+  summarize(across(Q25, list(Mean = ~mean(., na.rm = TRUE),
+                             Median = ~median(., na.rm = TRUE),
+                             Min = ~min(., na.rm = TRUE),
+                             Max = ~max(., na.rm = TRUE))))%>%
+  rename_with(~ gsub("Q25_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(align = "l") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Age", "", "",""),align = "l")
+
+df_age <- df_1 %>%
+  filter(!is.na(Q25))
+
+# Create age groups (e.g., 5-year intervals)
+df_age <- df_age %>%
+  mutate(age_group = cut(Q25, breaks = seq(0, 100, by = 5), right = FALSE))
+
+# Summarize the data by age group
+df_age_summary <- df_age %>%
+  group_by(age_group) %>%
+  summarise(count = n()) %>%
+  ungroup()
+```
+
+------------------------------------------------------------------------
+
+```{r}
+
+# Create the pyramid plot
+ggplot(df_age_summary, aes(x = age_group, y = count)) +
+  geom_bar(stat = "identity", fill = "#2596be") +  # You can change the color
+  geom_text(aes(label = count), hjust = -0.1, size = 4, alpha = 0.6) +
+  coord_flip() +
+  labs(
+    title = "Age Distribution of Respondents",
+    x = "Age Group",
+    y = "Number of Respondents"
+  ) +
+  theme_minimal() +
+  theme(
+  axis.title.x = element_text(margin = margin(t = 15)),  # Add margin to the x-axis title
+  axis.title.y = element_text(margin = margin(r = 15)),   # Add margin to the y-axis title
+  plot.title = element_text(hjust = -0.15)
+  )
+```
+
+## Q27 - Sex
+
+```{r}
+df_1 %>%
+  tabyl(Q27, Q133) %>%
+  arrange(desc(Yes +No))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "all") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Sex ", col_name = " Smuggler use", "combined") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+## Q30 - Dependent children
+
+```{r}
+tabyl_result <- df_1 %>%
+  tabyl(Q30, Q133, Q27) 
+
+total_tabyl <- df_1 %>%
+  tabyl(Q30) %>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Carrying dependent children", "", ""),align = "l")
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Carrying dependent children ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Carrying dependent children ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+total_tabyl
+male_table
+female_table
+```
+
+## Q31 - country of origin
+
+```{r}
+tabyl_result <- df_1 %>%
+  filter(Q31 %in% c("Togo","Nigeria", "Côte d'Ivoire", "Benin", "Niger"))%>%
+  tabyl(Q31, Q133, Q27)
+
+total_tabyl <- df_1 %>%
+  tabyl(Q31) %>%
+  arrange(desc(n))%>%
+  head(5)%>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Country of origin", "", "N = 2674"),align = "l")
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%
+  arrange(desc(Yes+No))%>%
+  adorn_totals(where =c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Country of origin ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  arrange(desc(Yes+No))%>%
+  adorn_totals(where =c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Country of origin ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+total_tabyl
+male_table
+female_table
+
+
+```
+
+## Q33 - migration status
+
+```{r}
+df_1 %>%
+  tabyl(Q33, Q133) %>%
+  arrange(desc(Yes +No))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Migration status ", col_name = " Smuggler use", "combined") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+# 1- How does the use of smuggling services influence the choice of migration routes?
+
+## Q41 - country of departure
+
+```{r}
+tabyl <- df_1 %>%
+  tabyl(Q41, Q133) %>%
+  arrange(desc(Yes +No))%>%
+  head(10)%>%
+  adorn_totals(where = c("row", "col"))
+
+tabyl%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front", ns=tabyl)%>%
+  adorn_title(row_name = "Country of departure ", col_name = " Smuggler use", "combined") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+## Q45_1 - duration of journey at the interview date
+
+```{r}
+df_1 %>%
+  mutate(journey_duration = difftime(df_1[["today"]],Q45_1))%>%
+  mutate(journey_class = case_when (
+    journey_duration < 30 ~ "Less than a month",
+    journey_duration < 120 ~ "Between 1 to 6 months",
+    journey_duration < 365 ~ "Between 6 to 12 months",
+    TRUE ~ "More than a year"
+  ))%>%
+  tabyl(journey_class,Q133)%>%
+  arrange(desc(Yes+No))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Duration of journey ", col_name = " Smuggler use", "combined") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+## Transit Journey
+
+### Transited vs Passed directly
+
+```{r}
+
+tabyl_result <-df_1 %>%
+  mutate(transited = case_when(
+    Q47 == "None" ~ "Passed directly",
+    TRUE ~ "Transited at least one country"
+  ))%>%
+  tabyl(transited,Q133,Q27)%>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+
+total_tabyl <- df_1 %>%
+  mutate(Transited = case_when(
+    Q47 == "None" ~ "Passed directly",
+    TRUE ~ "Transited at least one country"
+  ))%>%
+  tabyl(Transited)%>%
+  arrange(desc(n))%>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("", "", "N = 2674"),align = "l")
+  
+  
+  
+# Format the Female table
+female_table <- tabyl_result$Female %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_result$Female)%>%
+  adorn_title(row_name = "Transited ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_result$Male)%>%
+  adorn_title(row_name = "Transited ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+
+
+
+total_tabyl
+male_table
+female_table
+
+```
+
+### Q47\>Q54 - Countries transited
+
+```{r}
+tabyl <- df_1 %>%
+  select(`_id`,Q47:Q54,Q133)%>%
+  select(-matches("_1"))%>%
+  select(where(~!all(is.na(.))))%>%
+  pivot_longer(cols = -c(`_id`,Q133), values_to = "countries_transited")%>%
+  distinct(`_id`, countries_transited , .keep_all = TRUE) %>%
+  filter(!is.na(countries_transited), countries_transited !="None")%>%
+  tabyl(countries_transited,Q133)%>%
+  arrange(desc(Yes+No))%>%
+  head(10)%>%
+  adorn_totals(where =c("row", "col"))
+
+tabyl %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front", ns = tabyl)%>%
+  adorn_title(row_name = "Countries transited ", col_name = " Smuggler use", "combined") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+N= number of people who said having transited at least once
+
+## Stops
+
+### Stopped at least once vs did not stop
+
+```{r}
+df_1 %>%
+  mutate(transited = case_when(
+    Q56 == "None" ~ "Did not stop at all",
+    TRUE ~ "Stopped at least once"
+  ))%>%
+  tabyl(transited,Q133)%>%
+  arrange(desc(Yes + No))%>%
+  adorn_totals(where =c("row", "col"))%>%  
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Stopped ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+  
+```
+
+### Summary of stop per subset
+
+```{r}
+df_stops <- df_1 %>%
+  select(Q133,Q56,Q59,Q62,Q65,Q68)%>%
+  mutate(count = rowSums(across(everything(), ~ !(. %in% c("Yes", "No", "None", NA )))))
+
+
+df_stops %>%
+  filter(Q133 == "Yes" & count != 0)%>%
+  summarize(across(count, list(Mean = ~mean(., na.rm = TRUE),
+                             Median = ~median(., na.rm = TRUE),
+                             Min = ~min(., na.rm = TRUE),
+                             Max = ~max(., na.rm = TRUE))))%>%
+  rename_with(~ gsub("count_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(align = "l", caption = "Stops for those who used a smuggler") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+
+df_stops %>%
+  filter(Q133 == "No" & count != 0)%>%
+  summarize(across(count, list(Mean = ~mean(., na.rm = TRUE),
+                             Median = ~median(., na.rm = TRUE),
+                             Min = ~min(., na.rm = TRUE),
+                             Max = ~max(., na.rm = TRUE))))%>%
+  rename_with(~ gsub("count_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(align = "l", caption = "Stops for those who did not use a smuggler") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+### Countries \> Top 5 locations per country
+
+```{r}
+countries <- df_1 %>%
+  pivot_longer(cols = c(Q56,Q59,Q62,Q65,Q68), names_to = "country_stop_rank", values_to = "country_stops")%>%
+  select(Q133,country_stops)
+
+
+locations <- df_1 %>%
+  pivot_longer(cols = c(Q57,Q60,Q63,Q66,Q69), names_to = "location_stop_rank", values_to = "location_stops")%>%
+  select(location_stops)
+
+countries_locations <- cbind(countries,locations)
+
+tabyl_ref <- countries_locations %>%
+  filter(if_all(c(country_stops, location_stops), ~ !is.na(.) & . != "None" & . != "Other"))%>%
+  tabyl(country_stops,location_stops)%>%
+  pivot_longer(-country_stops, names_to = "location_stops", values_to = "n") %>%  # Make it long
+  arrange(desc(n))%>%
+  filter( !(n < 25))
+
+tabyl_result <- countries_locations %>%
+  filter(if_all(c(country_stops, location_stops), ~ !is.na(.) & . != "None" & . != "Other"))%>%
+  filter(location_stops %in% tabyl_ref$location_stops)%>%
+  tabyl(country_stops,location_stops,Q133)%>%
+  lapply(function(df) {
+    pivot_longer(df,-country_stops, names_to = "location_stops", values_to = "n")
+    })%>%
+  lapply(function(df) arrange(df,country_stops, desc(n)))
+
+
+tabyl_ref%>%
+  adorn_totals(where = "row")%>%
+  mutate(percent = n / 5866)%>%
+  adorn_pct_formatting(column = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")%>%
+  add_header_above(header = c("Country/Location stops", "", "","N = 5866"),align = "l")
+
+
+tabyl_no <- tabyl_result$No%>%
+  filter(n !=0)%>%
+  knitr::kable(caption = "Respondents that did not use a smuggler", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")%>%
+  add_header_above(header = c("Country/Location stops", "", ""),align = "l")
+
+tabyl_yes <- tabyl_result$Yes%>%
+  filter(n !=0)%>%
+  knitr::kable(caption = "Respondents that used a smuggler", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")%>%
+  add_header_above(header = c("Country/Location stops", "", ""),align = "l")
+
+
+tabyl_yes
+tabyl_no
+```
+
+N= Total number of stops mentioned
+
+### Countries \> Top 5 locations per country \> Top reasons per location
+
+```{r}
+
+reasons_matrix <- df_1 %>% 
+  pivot_longer(`Q58/Working to earn money for the next stretch of the journey`: `Q58/Smugglers stopped to recruit clients`, values_to = "reasons") %>%
+  select(Q27, Q133,reasons)%>%
+  filter(if_all(c(reasons), ~ !is.na(.) & . != "None"))
+
+#aggregating the reasons for the second stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q61/Working to earn money for the next stretch of the journey`: `Q61/Smugglers stopped to recruit clients`, values_to = "reasons") %>%
+  select(Q27, Q133,reasons)%>%
+  filter(if_all(c(reasons), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the reasons for the third stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q64/Working to earn money for the next stretch of the journey`: `Q64/Smugglers stopped to recruit clients`, values_to = "reasons") %>%
+  select(Q27, Q133,reasons)%>%
+  filter(if_all(c(reasons), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the reasons for the fourth stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q67/Working to earn money for the next stretch of the journey`: `Q67/Smugglers stopped to recruit clients`, values_to = "reasons") %>%
+  select(Q27, Q133,reasons)%>%
+  filter(if_all(c(reasons), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the reasons for the fifth stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q70/Working to earn money for the next stretch of the journey`: `Q70/Smugglers stopped to recruit clients`, values_to = "reasons") %>%
+  select(Q27, Q133,reasons)%>%
+  filter(if_all(c(reasons), ~ !is.na(.) & . != "None")) )
+
+
+#Compute frequencies for each reason
+
+reasons_matrix%>%
+  tabyl(reasons)%>%
+  arrange(desc(n))%>%
+  mutate(percent = n/5866)%>%
+  adorn_pct_formatting(column = "percent") %>%
+  #adorn_totals(where = "row")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Total reasons for choosing stop", "", "N = 5866"),align = "l")
+
+
+
+tabyl_ref <- reasons_matrix%>%
+  tabyl(reasons, Q133, Q27)%>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_ref$Female %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_ref$Female)%>%
+  adorn_title(row_name = "Reasons for stop ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_ref$Male %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_ref$Male)%>%
+  adorn_title(row_name = "Reasons for stop ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+
+
+
+male_table
+female_table
+
+
+######## countries with locations and their top reasons per location
+
+# countries <- df_1 %>%
+#   pivot_longer(cols = c(Q56,Q59,Q62,Q65,Q68), names_to = "country_stop_rank", values_to = "country_stops")%>%
+#   select(country_stops)
+# 
+# 
+# locations <- df_1 %>%
+#   pivot_longer(cols = c(Q57,Q60,Q63,Q66,Q69), names_to = "location_stop_rank", values_to = "location_stops")%>%
+#   select(location_stops)
+# 
+# countries_locations <- cbind(countries,locations)
+# 
+# df_2 <- cbind(df_1,countries_locations)
+# 
+# 
+# 
+# #First stop with location and reasons
+# 
+# stop_matrix <- df_1 %>%
+#   select(Q56:Q58_1)%>%
+#   select(-matches("_1"), -c(Q58, `Q58/Refused`, `Q58/Other`))%>%
+#   pivot_longer(col = -c(Q56,Q57),  # Pivot all except `country_stops` and `location_stops`
+#                names_to = "reasons_stop_rank",
+#                values_to = "reasons_stop")%>%
+#   filter(if_all(c(reasons_stop), ~ !is.na(.) & . != "None"))%>%
+#   select(-reasons_stop_rank)
+# 
+# 
+# #aggregating second stop with location and reasons
+# 
+# stop_matrix <- rbind (stop_matrix, df_1 %>%
+#   select(Q59:Q61_1)%>%
+#   select(-matches("_1"), -c(Q61, `Q61/Refused`, `Q61/Other`))%>%
+#   pivot_longer(col = -c(Q59,Q60),  # Pivot all except `country_stops` and `location_stops`
+#                names_to = "reasons_stop_rank",
+#                values_to = "reasons_stop")%>%
+#   rename(
+#     Q56 = Q59,
+#     Q57 = Q60)%>%
+#   filter(if_all(c(reasons_stop), ~ !is.na(.) & . != "None"))%>%
+#   select(-reasons_stop_rank))
+# 
+# #aggregating third stop with location and reasons
+# 
+# stop_matrix <- rbind (stop_matrix, df_1 %>%
+#   select(Q62:Q64_1)%>%
+#   select(-matches("_1"), -c(Q64, `Q64/Refused`, `Q64/Other`))%>%
+#   pivot_longer(col = -c(Q62,Q63),  # Pivot all except `country_stops` and `location_stops`
+#                names_to = "reasons_stop_rank",
+#                values_to = "reasons_stop")%>%
+#   rename(
+#     Q56 = Q62,
+#     Q57 = Q63)%>%
+#   filter(if_all(c(reasons_stop), ~ !is.na(.) & . != "None"))%>%
+#   select(-reasons_stop_rank))
+# 
+# 
+# #aggregating fourth stop with location and reasons
+# 
+# stop_matrix <- rbind (stop_matrix, df_1 %>%
+#   select(Q65:Q67_1)%>%
+#   select(-matches("_1"), -c(Q67, `Q67/Refused`, `Q67/Other`))%>%
+#   pivot_longer(col = -c(Q65,Q66),  # Pivot all except `country_stops` and `location_stops`
+#                names_to = "reasons_stop_rank",
+#                values_to = "reasons_stop")%>%
+#   rename(
+#     Q56 = Q65,
+#     Q57 = Q66)%>%
+#   filter(if_all(c(reasons_stop), ~ !is.na(.) & . != "None"))%>%
+#   select(-reasons_stop_rank))
+# 
+# #aggregating fifth stop with location and reasons
+# 
+# stop_matrix <- rbind (stop_matrix, df_1 %>%
+#   select(Q68:Q70_1)%>%
+#   select(-matches("_1"), -c(Q70, `Q70/Refused`, `Q70/Other`))%>%
+#   pivot_longer(col = -c(Q68,Q69),  # Pivot all except `country_stops` and `location_stops`
+#                names_to = "reasons_stop_rank",
+#                values_to = "reasons_stop")%>%
+#   rename(
+#     Q56 = Q68,
+#     Q57 = Q69)%>%
+#   filter(if_all(c(reasons_stop), ~ !is.na(.) & . != "None"))%>%
+#   select(-reasons_stop_rank))
+# 
+# stop_matrix <- rename(stop_matrix,
+#        Country = Q56,
+#        Location = Q57)
+# 
+# 
+# #Compute frequencies for each reason for each country
+# 
+# stop_matrix%>%
+#   filter(Location!="Other")%>%
+#   group_by(Country, Location, reasons_stop)%>%
+#   summarize(frequency = n())%>%
+#   arrange(desc(frequency))%>%
+#   group_by(Country) %>%
+#   slice_max(order_by = frequency, n = 5)%>%
+#   mutate(percent= frequency / 5866) %>%
+#   adorn_pct_formatting(column = "percent")%>%
+#   knitr :: kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+#                 full_width = FALSE,
+#                 position = "left")%>%
+#   add_header_above(header = c("Country/Location stops", "", "","","N = 5866"),align = "l")
+```
+
+## Q72 - Reasons for choosing a route
+
+```{r}
+reasons <- df_1 %>%
+    select(Q27,Q133,`Q72/Safest`:`Q72/This was the only option`)  %>%
+    pivot_longer(cols = - c(Q27,Q133), values_to = "Reasons_for_choosing_route")%>%
+    select(-name)%>%
+    filter(!is.na(Reasons_for_choosing_route))
+
+reasons%>%
+    tabyl(Reasons_for_choosing_route)%>%
+    mutate(percent = n/2674)%>%
+    arrange(desc(n))%>%
+    #adorn_totals(where = "row")%>%
+    adorn_pct_formatting(columns = "percent") %>%
+    knitr :: kable() %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                  full_width = TRUE, 
+                  position = "left")%>%
+    add_header_above(header = c("Reasons for choosing_route", "", "N = 2674"),align = "l")
+
+
+
+tabyl_result <- reasons %>%
+  tabyl(Reasons_for_choosing_route, Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Reasons for choosing route ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Reasons for choosing route ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q22 - end of journey
+
+Removed NA values from the analysis.
+
+```{r}
+df_1 %>% 
+  tabyl(Q22, show_na = FALSE) %>%
+  arrange(desc(n))%>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("End of journey", "", ""),align = "l")
+
+
+tabyl_result <- df_1 %>%
+  tabyl(show_na = FALSE, Q22, Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "End of journey ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "End of journey ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q92 - Preferred destination
+
+```{r}
+tabyl <- df_1 %>% 
+  tabyl(show_na = FALSE,Q92, Q133) %>%
+  arrange(desc(Yes + No))%>%
+  adorn_totals(where = c("row", "col"))
+
+tabyl%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Preferred destination / Smuggler use", "", "", "Removed NAs"),align = "l")
+```
+
+## S7 - Reasons for using smuggler services
+
+```{r}
+df_1 %>%
+  select(`S7/I thought it would be cheaper`:`S7/The smuggler pressured me into it`)  %>%
+  pivot_longer(cols = everything(), values_to = "Reasons_for_using_smugglers")%>%
+  tabyl(Reasons_for_using_smugglers, show_na = FALSE)%>%
+  mutate(percent = n/1550)%>%
+  arrange(desc(n))%>%
+  
+  #adorn_totals(where = "row")%>%
+  adorn_pct_formatting(columns = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Reasons for using smugglers", "", "N = 1550"),align = "l")
+
+
+df_1 %>%
+  select(Q27,`S7/I thought it would be cheaper`:`S7/The smuggler pressured me into it`)  %>%
+  pivot_longer(cols = -Q27, values_to = "Reasons_for_using_smugglers")%>%
+  select (-name)%>%
+  tabyl(show_na = FALSE, Reasons_for_using_smugglers,Q27)%>%
+  arrange(desc(Female + Male))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Reasons for using smuggler / Sex", "", "", "Removed NAs"),align = "l")
+```
+
+## Q133 - use of smuggler
+
+```{r}
+df[-c(1,2),] %>% 
+    mutate(across(c(`_submission_time`,today, Q45_1, Q25,Q165, Q141_3, S1_3, S2_3, S3_3, S4_3), ~ as.numeric(.))) %>%
+  mutate(across(c(`_submission_time`,today, Q45_1), ~ excel_numeric_to_date(.)))%>%
+  mutate(Q14 = if_else(Q14 == "Sikasso", "Sikasso city", Q14))%>%
+  filter(Q133 != "No")%>%
+  select(Q133, Q27)%>%
+  tabyl(Q133,Q27, show_na = FALSE) %>%
+  #mutate(percent = n/1550)%>%
+  arrange(desc(Female+ Male))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Use of smuggler / Sex", "", "", "Removed NAs"),align = "l")
+```
+
+## Q134 - Types of smuggler services
+
+```{r}
+df_1 %>%
+  filter(smuggler_module_open == "Yes" )%>%
+  select(`Q134/Provision of documents`:`Q134/Helped me find a job`)  %>%
+  pivot_longer(cols = everything(), values_to = "Types_smuggler_services")%>%
+  tabyl(show_na = FALSE, Types_smuggler_services)%>%
+  mutate(percent = n/1550)%>%
+  arrange(desc(n))%>%
+  #adorn_totals(where = "row")%>%
+  adorn_pct_formatting(columns = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Types of smuggler services", "", "N = 1550"),align = "l")
+
+
+df_1 %>%
+  filter(smuggler_module_open == "Yes" )%>%
+  select(Q27,`Q134/Provision of documents`:`Q134/Helped me find a job`)  %>%
+  pivot_longer(cols = -Q27, values_to = "Types_smuggler_services")%>%
+  select (-name)%>%
+  tabyl(show_na = FALSE, Types_smuggler_services,Q27)%>%
+  arrange(desc(Female + Male))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Types_smuggler_services / Sex", "", "", "Removed NAs"),align = "l")
+```
+
+## Smugglers and border crossing
+
+### S10 - use of a smuggler to cross a border
+
+```{r}
+df_1 %>%
+  select(S10, Q27)%>%
+  tabyl(show_na = FALSE, S10,Q27)%>%
+  arrange(desc(Female + Male))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Use of smuggler to cross a border / Sex", "","", ""),align = "l")
+```
+
+### S10_3 - Borders Crossed
+
+```{r}
+
+#Total tabyl
+df_1 %>% 
+  filter(S10 == "Yes")%>%
+  select(Q27,`S10_3/Egypt/Libya`:`S10_3/West - Togo/Burkina Faso`)%>%
+  pivot_longer(cols = `S10_3/Egypt/Libya`:`S10_3/West - Togo/Burkina Faso`, values_to = "border_crossed")%>%
+  select(-name)%>%
+  filter(!is.na(border_crossed))%>%
+  tabyl(border_crossed)%>%
+  arrange(desc(n))%>%
+  head(10)%>%
+  adorn_totals(where = c("row"))%>%
+  mutate(percent = n /1550)%>%
+  adorn_pct_formatting(column = "percent")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Borders crossed with a smuggler", "", "N = 1550"),align = "l")
+
+
+
+tabyl <- df_1 %>% 
+  filter(S10 == "Yes")%>%
+  select(Q27,`S10_3/Egypt/Libya`:`S10_3/West - Togo/Burkina Faso`)%>%
+  pivot_longer(cols = `S10_3/Egypt/Libya`:`S10_3/West - Togo/Burkina Faso`, values_to = "border_crossed")%>%
+  select(-name)%>%
+  filter(!is.na(border_crossed))%>%
+  tabyl(border_crossed, Q27)%>%
+  arrange(desc(Female + Male))%>%
+  head(10)%>%
+  adorn_totals(where = c("row", "col"))
+
+tabyl%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl)%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Borders crossed with a smuggler / Sex", "", "",""),align = "l")
+```
+
+## S6: predeparture intentions for using smuggling services
+
+```{r}
+df_1 %>%
+  tabyl( show_na = FALSE,S6,Q27)%>%
+  arrange(desc(Female + Male))%>%
+  adorn_totals(where = c("row","col"))%>%
+  adorn_percentages()%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("predeparture intentions for using smuggling services / Sex", "", "", ""),align = "l")
+```
+
+# 2- How do smuggling fees affect journey costs and financing options?
+
+## Q138: initial finance of the journey
+
+```{r}
+df_1 %>% 
+  select(`Q138/Borrowing`: `Q138/There was no initial payment`)%>%
+  pivot_longer(cols = everything(), values_to = "smuggling_financing")%>%
+  select(-name)%>%
+  tabyl(show_na = FALSE, smuggling_financing)%>%
+  mutate(percent = n/2674)%>%
+  arrange(desc(percent))%>%
+  #adorn_totals(where = "row")%>%
+  adorn_pct_formatting(columns = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Ways of financing", "", "N = 2674"),align = "l")
+
+
+tabyl_result <- df_1 %>% 
+  select(Q27, Q133,`Q138/Borrowing`: `Q138/There was no initial payment`)%>%
+  pivot_longer(cols = `Q138/Borrowing`: `Q138/There was no initial payment`, values_to = "smuggling_financing")%>%
+  select(-name)%>%
+  tabyl(show_na = FALSE, smuggling_financing, Q133, Q27)%>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Ways of financing ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Ways of financing ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+
+```
+
+## Q139: Was this enough money to pay for your journey so far?
+
+```{r}
+df_1 %>%
+  tabyl(Q139, show_na = FALSE)%>%
+  arrange(desc(n))%>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Enough money?", "Removed NAs", ""),align = "l")
+
+
+tabyl_result <- df_1 %>% 
+  select(Q139,Q27,Q133)%>%
+  tabyl(show_na = FALSE, Q139, Q133, Q27)%>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Enough money? ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Enough money? ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q140: How have you paid for the journey since its start?
+
+```{r}
+df_1 %>% 
+  select(`Q140/I worked`: `Q140/Sold belongings`)%>%
+  pivot_longer(cols = everything(), values_to = "ongoing_journey_financing")%>%
+  select(-name)%>%
+  tabyl(ongoing_journey_financing, show_na = FALSE)%>%
+  mutate(percent = n/748)%>%
+  arrange(desc(percent))%>%
+  #adorn_totals(where = "row")%>%
+  adorn_pct_formatting(columns = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Financing means of ongoing journey", "", "N = 2674"),align = "l")
+
+tabyl_result <- df_1 %>% 
+  select(Q27, Q133,`Q140/I worked`: `Q140/Sold belongings`)%>%
+  pivot_longer(cols = `Q140/I worked`: `Q140/Sold belongings`, values_to = "ongoing_journey_financing")%>%
+  select(-name)%>%
+  tabyl(show_na = FALSE, ongoing_journey_financing, Q133, Q27)%>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Ways of financing ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Ways of financing ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q141 - cost of journey - Summary
+
+```{r}
+getFX("XOF/USD")
+cfa_usd <- as.numeric(last(XOFUSD$XOF.USD))
+getFX("EUR/USD")
+eur_usd <- as.numeric(last(EURUSD$EUR.USD))
+
+df_1 %>%
+  filter(Q141 == "Know the amount" & Q133 == "Yes") %>%
+  select(Q141_1, Q141_3) %>%
+  mutate(
+    Q141_3 = as.numeric(Q141_3),  # Convert the column to numeric
+    Q141_3 = case_when(
+      Q141_1 == "CFA" ~ round(Q141_3 * cfa_usd),  # Convert CFA to USD
+      Q141_1 == "EUR" ~ round(Q141_3 * eur_usd),  # Convert EUR to USD
+      TRUE ~ Q141_3  # Keep the original value for other cases
+    )
+  ) %>%
+  filter(Q141_3 != outlier(Q141_3))%>%
+  summarize(across(Q141_3, list(Mean = ~paste0(round(mean(., na.rm = TRUE),2), ' $'),
+                             Median = ~paste0(median(., na.rm = TRUE),' $'),
+                             Min = ~paste0(min(., na.rm = TRUE),' $'),
+                             Max = ~paste0(max(., na.rm = TRUE),' $'))))%>%
+  rename_with(~ gsub("Q141_3_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(caption = "Respondents that used a smuggler", format = "html",align = "l") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Cost of journey", "", "","N = 1471"),align = "l")
+
+
+df_1 %>%
+  filter(Q141 == "Know the amount" & Q133 == "No") %>%
+  select(Q141_1, Q141_3) %>%
+  mutate(
+    Q141_3 = as.numeric(Q141_3),  # Convert the column to numeric
+    Q141_3 = case_when(
+      Q141_1 == "CFA" ~ round(Q141_3 * cfa_usd),  # Convert CFA to USD
+      Q141_1 == "EUR" ~ round(Q141_3 * eur_usd),  # Convert EUR to USD
+      TRUE ~ Q141_3  # Keep the original value for other cases
+    )
+  ) %>%
+  filter(Q141_3 != outlier(Q141_3))%>%
+  summarize(across(Q141_3, list(Mean = ~paste0(round(mean(., na.rm = TRUE),2), ' $'),
+                             Median = ~paste0(median(., na.rm = TRUE),' $'),
+                             Min = ~paste0(min(., na.rm = TRUE),' $'),
+                             Max = ~paste0(max(., na.rm = TRUE),' $'))))%>%
+  rename_with(~ gsub("Q141_3_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(caption = "Respondents that did not use a smuggler", format = "html",align = "l") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Cost of journey", "", "","N = 1063"),align = "l")
+
+
+# Define more granular categories for costs below $500
+cost_bins_sub <- c(0, 100, 200, 300, 400, 500, 1000, 2000, 5000, Inf)
+cost_labels_sub <- c("$0-$100", "$100-$200", "$200-$300", "$300-$400", "$400-$500", "$500-$1000", "$1000-$2000", "$2000-$5000", "> $5000")
+
+# For smuggler users (Q133 == "Yes") with new subclasses
+df_smuggler_sub <- df_1 %>%
+  filter(Q141 == "Know the amount" & Q133 == "Yes") %>%
+  select(Q141_1, Q141_3) %>%
+  mutate(
+    Q141_3 = as.numeric(Q141_3),  # Convert to numeric
+    Q141_3 = case_when(
+      Q141_1 == "CFA" ~ round(Q141_3 * cfa_usd),  # Convert CFA to USD
+      Q141_1 == "EUR" ~ round(Q141_3 * eur_usd),  # Convert EUR to USD
+      TRUE ~ Q141_3  # Keep the original for USD
+    )
+    ,
+    Cost_Category = cut(Q141_3, breaks = cost_bins_sub, labels = cost_labels_sub)  # Categorize the costs with finer bins
+  ) %>%
+  filter(!is.na(Cost_Category)) %>%
+  count(Cost_Category) %>%
+  mutate(Group = "Smuggler", n = -n)  # Negative for mirrored effect
+
+# For non-smuggler users (Q133 == "No") with new subclasses
+df_non_smuggler_sub <- df_1 %>%
+  filter(Q141 == "Know the amount" & Q133 == "No") %>%
+  select(Q141_1, Q141_3) %>%
+  mutate(
+    Q141_3 = as.numeric(Q141_3),  # Convert to numeric
+    Q141_3 = case_when(
+      Q141_1 == "CFA" ~ round(Q141_3 * cfa_usd),  # Convert CFA to USD
+      Q141_1 == "EUR" ~ round(Q141_3 * eur_usd),  # Convert EUR to USD
+      TRUE ~ Q141_3  # Keep the original for USD
+    ),
+    Cost_Category = cut(Q141_3, breaks = cost_bins_sub, labels = cost_labels_sub)  # Categorize the costs with finer bins
+  ) %>%
+  filter(!is.na(Cost_Category)) %>%
+  count(Cost_Category) %>%
+  mutate(Group = "Non-Smuggler")  # Positive for non-smuggler users
+
+# Combine the two datasets for plotting
+df_combined_sub <- bind_rows(df_smuggler_sub, df_non_smuggler_sub)
+
+# Calculate the y-axis (count) position with the maximum frequency for each group
+max_smuggler_value <- df_combined_sub %>% 
+  filter(Group == "Smuggler") %>% 
+  arrange(n) %>% 
+  slice(1) %>% 
+  pull(n)
+
+max_non_smuggler_value <- df_combined_sub %>% 
+  filter(Group == "Non-Smuggler") %>% 
+  arrange(desc(n)) %>% 
+  slice(1) %>% 
+  pull(n)
+
+# Create the updated mirrored bar chart with horizontal lines for each group
+ggplot(df_combined_sub, aes(x = Cost_Category, y = n, fill = Group)) +
+  geom_bar(stat = "identity", position = "identity") +
+  
+  # Add horizontal lines for the highest frequency for both groups (because of coord_flip())
+  geom_hline(yintercept = max_smuggler_value, linetype = "dashed", color = "grey", size = 0.2) +  # Smuggler
+  geom_hline(yintercept = max_non_smuggler_value, linetype = "dashed", color = "grey", size = 0.2) +  # Non-Smuggler
+  
+  
+  coord_flip() +  # Flip coordinates for horizontal bars
+  scale_y_continuous(labels = abs, breaks = c(max_smuggler_value, max_non_smuggler_value, seq(-250, 250, by = 100))) +
+  
+  # Customize the y-axis to only show upper boundaries
+  scale_x_discrete(labels = c("< $100", "< $200", "< $300", "< $400", "< $500", "< $1000", "< $2000", "< $5000", "> $5000")) +
+  
+  # Customize the fill colors: change red to light violet
+  scale_fill_manual(values = c("Non-Smuggler" = "#D8BFD8", "Smuggler" = "#00CED1")) +
+  
+  # Labels
+  labs(
+    x = "Cost of Journey",
+    y = "Number of Respondents",
+    title = "Journey Costs"
+  ) +
+  
+  # Customize the theme: Legend beneath the x-axis title and justified to the left
+  theme_minimal() +
+  theme(
+    legend.title = element_blank(),  # Hide the "Group" label in the legend
+    legend.position = "bottom",  # Move the legend to the bottom
+    legend.direction = "horizontal",  # Set legend to be horizontal
+    plot.title = element_text(hjust = 0.45),  # Center-align title
+    axis.text.y = element_text(size = 10),  # Adjust y-axis text size
+    axis.title.x = element_text(margin = margin(t = 15)),  # Add margin to the x-axis title
+    axis.title.y = element_text(margin = margin(r = 15)),   # Add margin to the y-axis title
+    plot.margin = margin(10, 10, 20, 10)  # Add margin below the plot for the legend
+  )
+
+
+
+```
+
+N = only those that know the amount
+
+## Q135: Payment modalities of smuggling services
+
+```{r}
+df_1 %>%
+  filter(Q133 != "No" & smuggler_module_open == "Yes")%>%
+  select(Q135, Q27)%>%
+  tabyl(Q135, Q27)%>%
+  arrange(desc(Female+Male))%>%
+  adorn_totals(where = c("row","col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Payment modalities for smuggling services / Sex","", "",""),align = "l")
+```
+
+## S1 - Total amount paid so far for smuggling services
+
+```{r}
+getFX("XOF/USD")
+cfa_usd <- as.numeric(last(XOFUSD$XOF.USD))
+
+getFX("EUR/USD")
+eur_usd <- as.numeric(last(EURUSD$EUR.USD))
+
+getFX("GHS/USD")
+ghs_usd <- as.numeric(last(GHSUSD$GHS.USD))
+
+getFX("GNF/USD")
+gnf_usd <- as.numeric(last(GNFUSD$GNF.USD))
+
+getFX("NGN/USD")
+ngn_usd <- as.numeric(last(NGNUSD$NGN.USD))
+
+df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No" & S1 =="Know the amount" & Q27 =="Male") %>%
+  select(S1_1, S1_3) %>%
+  mutate(
+    S1_3 = as.numeric(S1_3),  # Convert the column to numeric
+    S1_3 = case_when(
+      S1_1 == "CFA" ~ round(S1_3 * cfa_usd),  # Convert CFA to USD
+      S1_1 == "GHS" ~ round(S1_3 * ghs_usd),  # Convert GHS to USD
+      S1_1 == "GNF" ~ round(S1_3 * gnf_usd),
+      S1_1 == "NGN" ~ round(S1_3 * ngn_usd),
+      TRUE ~ S1_3  # Keep the original value for other cases
+    )
+  ) %>%
+  filter(S1_3 != 0)%>%
+  summarize(across(S1_3, list(Mean = ~paste0(round(mean(., na.rm = TRUE),2), ' $'),
+                              Median = ~paste0(median(., na.rm = TRUE),' $'),
+                              Min = ~paste0(min(., na.rm = TRUE),' $'),
+                              Max = ~paste0(max(., na.rm = TRUE),' $'))))%>%
+  rename_with(~ gsub("S1_3_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(caption = "Male respondents", format = "html",align = "l") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Total amount paid so far for smugglers", "", "","N = 697"),align = "l")
+  
+  
+df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No" & S1 =="Know the amount" & Q27 =="Female") %>%
+  select(S1_1, S1_3) %>%
+  mutate(
+    S1_3 = as.numeric(S1_3),  # Convert the column to numeric
+    S1_3 = case_when(
+      S1_1 == "CFA" ~ round(S1_3 * cfa_usd),  # Convert CFA to USD
+      S1_1 == "GHS" ~ round(S1_3 * ghs_usd),  # Convert GHS to USD
+      S1_1 == "GNF" ~ round(S1_3 * gnf_usd),
+      S1_1 == "NGN" ~ round(S1_3 * ngn_usd),
+      TRUE ~ S1_3  # Keep the original value for other cases
+    )
+  ) %>%
+  filter(S1_3 != 0)%>%
+  summarize(across(S1_3, list(Mean = ~paste0(round(mean(., na.rm = TRUE),2), ' $'),
+                              Median = ~paste0(median(., na.rm = TRUE),' $'),
+                              Min = ~paste0(min(., na.rm = TRUE),' $'),
+                              Max = ~paste0(max(., na.rm = TRUE),' $'))))%>%
+  rename_with(~ gsub("S1_3_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(caption = "Female respondents", format = "html",align = "l") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Total amount paid so far for smugglers", "", "","N = 461"),align = "l")
+
+```
+
+## S2/S3/S4 - Total amount paid for smuggling services in installments
+
+```{r}
+getFX("XOF/USD")
+cfa_usd <- as.numeric(last(XOFUSD$XOF.USD))
+
+getFX("EUR/USD")
+eur_usd <- as.numeric(last(EURUSD$EUR.USD))
+
+getFX("GHS/USD")
+ghs_usd <- as.numeric(last(GHSUSD$GHS.USD))
+
+getFX("GNF/USD")
+gnf_usd <- as.numeric(last(GNFUSD$GNF.USD))
+
+getFX("NGN/USD")
+ngn_usd <- as.numeric(last(NGNUSD$NGN.USD))
+
+getFX("SLL/USD")
+sll_usd <- as.numeric(last(SLLUSD$SLL.USD))
+
+cbind(df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No" & is.na(S1)) %>%
+  select(S2_1,S3_1,S4_1) %>%
+  pivot_longer(cols = everything(), values_to = "Currency"),
+  df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No" & is.na(S1)) %>%
+  select(S2_3,S3_3,S4_3) %>%
+  pivot_longer(cols = everything(), values_to = "Amount"))%>%
+  select(-name)%>%
+  filter(!is.na(Amount))%>%
+  mutate(
+    Amount = as.numeric(Amount),  # Convert the column to numeric
+    Amount = case_when(
+      Currency == "CFA" ~ round(Amount * cfa_usd),  # Convert CFA to USD
+      Currency == "GHS" ~ round(Amount * ghs_usd),  # Convert GHS to USD
+      Currency == "GNF" ~ round(Amount * gnf_usd),
+      Currency == "NGN" ~ round(Amount * ngn_usd),
+      Currency == "EUR" ~ round(Amount * eur_usd),
+      Currency == "SLL" ~ round(Amount * sll_usd),
+      TRUE ~ Amount  # Keep the original value for other cases
+    )
+  ) %>%
+  filter(Amount != 0)%>%
+  arrange(desc(Amount))%>%
+  summarize(across(Amount, list(Mean = ~paste0(round(mean(., na.rm = TRUE),2), ' $'),
+                              Median = ~paste0(median(., na.rm = TRUE),' $'),
+                              Min = ~paste0(min(., na.rm = TRUE),' $'),
+                              Max = ~paste0(max(., na.rm = TRUE),' $'))))%>%
+  rename_with(~ gsub("Currency_", "", .)) %>%  
+  kable(align = "l") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Total amount paid for smuggling services in installments", "", "","N =  only those that know the amount"),align = "l")
+
+```
+
+## Q163 - contact with state officials
+
+```{r}
+df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No")%>%
+  select(`Q163/Police at a border`: `Q163/None of these`)%>%
+  pivot_longer(cols = everything(), values_to = "contact_with_officials")%>%
+  select(-name)%>%
+  tabyl(contact_with_officials, show_na = FALSE)%>%
+  mutate(percent = n/1550)%>%
+  arrange(desc(percent))%>%
+  #adorn_totals(where = "row")%>%
+  adorn_pct_formatting(colum = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Contact with state officials", "", "N = 1550"),align = "l")
+
+
+df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No")%>%
+  select(Q27,`Q163/Police at a border`: `Q163/None of these`)%>%
+  pivot_longer(cols = `Q163/Police at a border`: `Q163/None of these`, values_to = "contact_with_officials")%>%
+  select(-name)%>%
+  tabyl(show_na = FALSE, contact_with_officials, Q27)%>%
+  arrange(desc(Male + Female))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Contact with state officials", "", "",""),align = "l")
+```
+
+## Q164 - corruption
+
+```{r}
+df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No")%>%
+  select(`Q164/Police at a border`: `Q164/None of these`)%>%
+  pivot_longer(cols = everything(), values_to = "contact_with_officials")%>%
+  select(-name)%>%
+  tabyl(contact_with_officials, show_na = FALSE)%>%
+  mutate(percent = n/1550)%>%
+  arrange(desc(percent))%>%
+  #adorn_totals(where = "row")%>%
+  adorn_pct_formatting(colum = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Corruption with state officials", "", "N = 1550"),align = "l")
+
+
+df_1 %>%
+  filter(smuggler_module_open == "Yes" & Q133 != "No")%>%
+  select(Q27,`Q164/Police at a border`: `Q164/None of these`)%>%
+  pivot_longer(cols = `Q164/Police at a border`: `Q164/None of these`, values_to = "contact_with_officials")%>%
+  select(-name)%>%
+  tabyl(show_na = FALSE, contact_with_officials, Q27)%>%
+  arrange(desc(Male + Female))%>%
+  adorn_totals(where = c("row", "col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Corruption with state officials", "", "",""),align = "l")
+```
+
+## S11 - Were state officials involved in or did they facilitate migrant smuggling during your journey?
+
+```{r}
+df_1 %>%
+  filter(Q133 != "No" & smuggler_module_open == "Yes")%>%
+  select(S11,Q27)%>%
+  tabyl(show_na = FALSE, S11,Q27)%>%
+  arrange(desc(Female+Male))%>%
+  adorn_totals(where = c("row","col"))%>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("State officials involvement in smuggling","", "",""),align = "l")
+```
+
+# 3- What are the links between reliance on smuggler services and protection risks?
+
+## Dangerous locations
+
+### Traveled through a dangerous location vs those who did not
+
+```{r}
+df_1 %>%
+  mutate(transited = case_when(
+    Q98 == "None" ~ "Did not travel through a dangerous location",
+    TRUE ~ "Travelled at least once"
+  ))%>%
+  tabyl(transited,Q133)%>%
+  arrange(desc(Yes + No))%>%
+  adorn_totals(where =c("row", "col"))%>%  
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Stopped ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Disaggregated by subset", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+df_1 %>%
+  mutate(transited = case_when(
+    Q98 == "None" ~ "Did not travel through a dangerous location",
+    TRUE ~ "Travelled at least once"
+  ))%>%
+  tabyl(transited,Q27)%>%
+  arrange(desc(Male + Female))%>%
+  adorn_totals(where =c("row", "col"))%>%  
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Stopped ", col_name = " Sex", "combined") %>%
+  knitr::kable(caption = "Disaggregated by sex", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+
+```
+
+### Summary of the number of dangerous locations reported
+
+```{r}
+df_stops <- df_1 %>%
+  select(Q133,Q98,Q102,Q106,Q110,Q114)%>%
+  mutate(count = rowSums(across(everything(), ~ !(. %in% c("Yes", "No", "None", NA )))))
+
+
+df_stops %>%
+  filter(Q133 == "Yes" & count != 0)%>%
+  summarize(across(count, list(Mean = ~mean(., na.rm = TRUE),
+                             Median = ~median(., na.rm = TRUE),
+                             Min = ~min(., na.rm = TRUE),
+                             Max = ~max(., na.rm = TRUE))))%>%
+  rename_with(~ gsub("count_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(align = "l", caption = "Stops for those who used a smuggler") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+
+df_stops %>%
+  filter(Q133 == "No" & count != 0)%>%
+  summarize(across(count, list(Mean = ~mean(., na.rm = TRUE),
+                             Median = ~median(., na.rm = TRUE),
+                             Min = ~min(., na.rm = TRUE),
+                             Max = ~max(., na.rm = TRUE))))%>%
+  rename_with(~ gsub("count_", "", .)) %>%  # Remove the "Q25_" prefix
+  kable(align = "l", caption = "Stops for those who did not use a smuggler") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+```
+
+### Q99 ; 103 ; 107 ; 111 ; 115 - Most dangerous location
+
+```{r}
+tabyl_ref <- df_1 %>%
+  select(Q99,Q103,Q107,Q111,Q115)%>%
+  pivot_longer(cols = everything(), values_to = "dangerous_locations")%>%
+  filter(dangerous_locations != "Other" & !is.na(dangerous_locations))%>%
+  tabyl(dangerous_locations)%>%
+  filter(n>20)
+  
+  
+tabyl_ref%>%
+  arrange(desc(n))%>%
+  adorn_totals()%>%
+  mutate(percent = n/2674)%>%
+  adorn_pct_formatting(column = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Most dangerous locations","", "N= 2674"),align = "l")
+
+
+df_1%>%
+  select(Q133,Q99,Q103,Q107,Q111,Q115)%>%
+  pivot_longer(cols = -Q133, values_to = "dangerous_locations")%>%
+  filter(dangerous_locations != "Other" & !is.na(dangerous_locations))%>%
+  tabyl(dangerous_locations,Q133)%>%
+  filter(dangerous_locations %in% tabyl_ref$dangerous_locations)%>%
+  arrange(desc(Yes + No))%>%
+  adorn_totals()%>%
+  knitr :: kable(caption = "Disaggregated by subset", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+
+
+df_1%>%
+  select(Q27,Q99,Q103,Q107,Q111,Q115)%>%
+  pivot_longer(cols = -Q27, values_to = "dangerous_locations")%>%
+  filter(dangerous_locations != "Other" & !is.na(dangerous_locations))%>%
+  tabyl(dangerous_locations,Q27)%>%
+  filter(dangerous_locations %in% tabyl_ref$dangerous_locations)%>%
+  arrange(desc(Female + Male))%>%
+  adorn_totals()%>%
+  knitr :: kable(caption = "Disaggregated by sex", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")
+
+
+```
+
+## Q100 ; 104 ; 108 ; 112 ; 116 -Top 5 perceived risks
+
+```{r}
+reasons_matrix <- df_1 %>% 
+  pivot_longer(`Q100/Death`: `Q100/Injury / ill-health from harsh conditions`, values_to = "risks") %>%
+  select(Q27, Q133,risks)%>%
+  filter(if_all(c(risks), ~ !is.na(.) & . != "None"))
+
+#aggregating the risks for the second stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q104/Death`: `Q104/Injury / ill-health from harsh conditions`, values_to = "risks") %>%
+  select(Q27, Q133,risks)%>%
+  filter(if_all(c(risks), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the risks for the third stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q108/Death`: `Q108/Injury / ill-health from harsh conditions`, values_to = "risks") %>%
+  select(Q27, Q133,risks)%>%
+  filter(if_all(c(risks), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the risks for the fourth stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q112/Death`: `Q112/Injury / ill-health from harsh conditions`, values_to = "risks") %>%
+  select(Q27, Q133,risks)%>%
+  filter(if_all(c(risks), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the risks for the fifth stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q116/Death`: `Q116/Injury / ill-health from harsh conditions`, values_to = "risks") %>%
+  select(Q27, Q133,risks)%>%
+  filter(if_all(c(risks), ~ !is.na(.) & . != "None")) )
+
+
+#Compute frequencies for each reason
+
+reasons_matrix%>%
+  tabyl(risks)%>%
+  arrange(desc(n))%>%
+  mutate(percent = n/1715)%>%
+  adorn_pct_formatting(column = "percent") %>%
+  #adorn_totals(where = "row")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Top perceived risks", "", "N = 1715"),align = "l")
+
+
+
+tabyl_ref <- reasons_matrix%>%
+  tabyl(risks, Q133, Q27)%>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_ref$Female %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_ref$Female)%>%
+  adorn_title(row_name = "Risks ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_ref$Male %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_ref$Male)%>%
+  adorn_title(row_name = "Risks ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+
+
+
+# #First danger location and perceived risks
+# perceived_risks <- df_1 %>%
+#   select(Q98, Q99:`Q100/Refused`) %>%
+#   select(-matches("_1"), -c(Q100, `Q100/Refused`, `Q100/Other`, Q99_2)) %>%
+#   pivot_longer(cols = -c(Q98, Q99),  # Pivot all except Q98 and Q99
+#                values_to = "perceived_risks") %>%
+#   filter(if_all(c(perceived_risks, Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#   select(-name)
+# 
+# 
+# #aggregating second stop with location and reasons
+# 
+# perceived_risks <- rbind (perceived_risks, df_1 %>%
+#                             select(Q102:`Q104/Refused`) %>%
+#                             select(-matches("_1"), -c(Q104, `Q104/Refused`, `Q104/Other`, Q103_2)) %>%
+#                             pivot_longer(cols = -c(Q102, Q103),  # Pivot all except Q98 and Q99
+#                                          values_to = "perceived_risks") %>%
+#                             rename(
+#                               Q98 = Q102,
+#                               Q99 = Q103)%>%
+#                             filter(if_all(c(perceived_risks,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# #aggregating third stop with location and reasons
+# 
+# perceived_risks <- rbind (perceived_risks, df_1 %>%
+#                             select(Q106:`Q108/Refused`) %>%
+#                             select(-matches("_1"), -c(Q108, `Q108/Refused`, `Q108/Other`, Q107_2)) %>%
+#                             pivot_longer(cols = -c(Q106, Q107),  # Pivot all except Q98 and Q99
+#                                          values_to = "perceived_risks") %>%
+#                             rename(
+#                               Q98 = Q106,
+#                               Q99 = Q107)%>%
+#                             filter(if_all(c(perceived_risks,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# 
+# #aggregating fourth stop with location and reasons
+# 
+# perceived_risks <- rbind (perceived_risks, df_1 %>%
+#                             select(Q110:`Q112/Refused`) %>%
+#                             select(-matches("_1"), -c(Q112, `Q112/Refused`, `Q112/Other`, Q111_2)) %>%
+#                             pivot_longer(cols = -c(Q110, Q111),  # Pivot all except Q98 and Q99
+#                                          values_to = "perceived_risks") %>%
+#                             rename(
+#                               Q98 = Q110,
+#                               Q99 = Q111)%>%
+#                             filter(if_all(c(perceived_risks,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# #aggregating fifth stop with location and reasons
+# 
+# perceived_risks <- rbind (perceived_risks, df_1 %>%
+#                             select(Q114:`Q116/Refused`) %>%
+#                             select(-matches("_1"), -c(Q116, `Q116/Refused`, `Q116/Other`, Q115_2)) %>%
+#                             pivot_longer(cols = -c(Q114, Q115),  # Pivot all except Q98 and Q99
+#                                          values_to = "perceived_risks") %>%
+#                             rename(
+#                               Q98 = Q114,
+#                               Q99 = Q115)%>%
+#                             filter(if_all(c(perceived_risks,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# perceived_risks <- rename(perceived_risks,
+#                       Country = Q98,
+#                       Location = Q99) 
+# 
+# 
+# #Compute frequencies for each reason for each country
+# perceived_risks %>%
+#   group_by(Country, Location, perceived_risks) %>%
+#   summarize(frequency = n(), .groups = 'drop') %>%
+#   arrange(desc(frequency)) %>%
+#   group_by(Country) %>%
+#   slice_max(order_by = frequency, n = 5, with_ties = FALSE) %>%  # Ensure only the top 5 per country
+#   mutate(percent = frequency /1715)%>% 
+#   adorn_pct_formatting(column = "percent")%>%
+#   knitr::kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+#                 full_width = FALSE, 
+#                 position = "left") %>%
+#   add_header_above(header = c("Top 5 perceived risks per country", "", "","", "N= 1715"), align = "l")
+```
+
+## Q101 ; 105 ; 109 ; 113 ; 117 - Top 5 likely perpetrators
+
+```{r}
+reasons_matrix <- df_1 %>% 
+  pivot_longer(`Q101/Smugglers`: `Q101/People from local community`, values_to = "perpetrators") %>%
+  select(Q27, Q133,perpetrators)%>%
+  filter(if_all(c(perpetrators), ~ !is.na(.) & . != "None"))
+
+#aggregating the perpetrators for the second stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q105/Smugglers`: `Q105/People from local community`, values_to = "perpetrators") %>%
+  select(Q27, Q133,perpetrators)%>%
+  filter(if_all(c(perpetrators), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the perpetrators for the third stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q109/Smugglers`: `Q109/People from local community`, values_to = "perpetrators") %>%
+  select(Q27, Q133,perpetrators)%>%
+  filter(if_all(c(perpetrators), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the perpetrators for the fourth stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q113/Smugglers`: `Q113/People from local community`, values_to = "perpetrators") %>%
+  select(Q27, Q133,perpetrators)%>%
+  filter(if_all(c(perpetrators), ~ !is.na(.) & . != "None")) )
+
+
+#aggregating the perpetrators for the fifth stop
+
+reasons_matrix <- rbind(reasons_matrix, df_1 %>% 
+  pivot_longer(`Q117/Smugglers`: `Q117/People from local community`, values_to = "perpetrators") %>%
+  select(Q27, Q133,perpetrators)%>%
+  filter(if_all(c(perpetrators), ~ !is.na(.) & . != "None")) )
+
+
+#Compute frequencies for each reason
+
+reasons_matrix%>%
+  tabyl(perpetrators)%>%
+  arrange(desc(n))%>%
+  mutate(percent = n/1715)%>%
+  adorn_pct_formatting(column = "percent") %>%
+  #adorn_totals(where = "row")%>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Top likely perpetrators", "", "N = 1715"),align = "l")
+
+
+
+tabyl_ref <- reasons_matrix%>%
+  tabyl(perpetrators, Q133, Q27)%>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_ref$Female %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_ref$Female)%>%
+  adorn_title(row_name = "Perpetrators ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_ref$Male %>%
+  adorn_percentages(denominator = "col")%>%
+  adorn_pct_formatting()%>%
+  adorn_ns(position = "front", ns = tabyl_ref$Male)%>%
+  adorn_title(row_name = "Perpetrators ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+
+
+
+# #First danger location and likely perpetrators
+# perpetrators_df <- df_1 %>%
+#   select(Q98, Q99,`Q101/Smugglers`:`Q101/Refused`) %>%
+#   select(-matches("_1"), -c(`Q101/Refused`, `Q101/Other`)) %>%
+#   pivot_longer(cols = -c(Q98, Q99),  # Pivot all except Q98 and Q99
+#                values_to = "perpetrators") %>%
+#   filter(if_all(c(perpetrators, Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#   select(-name)
+# 
+# 
+# #aggregating second stop with location and likely perpetrators
+# 
+# perpetrators_df <- rbind (perpetrators_df, df_1 %>%
+#                             select(Q102, Q103,`Q105/Smugglers`:`Q105/Refused`) %>%
+#                             select(-matches("_1"), -c(`Q105/Refused`, `Q105/Other`)) %>%
+#                             pivot_longer(cols = -c(Q102, Q103),  # Pivot all except Q98 and Q99
+#                                          values_to = "perpetrators") %>%
+#                             rename(
+#                               Q98 = Q102,
+#                               Q99 = Q103)%>%
+#                             filter(if_all(c(perpetrators,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# #aggregating third stop with location and likely perpetrators
+# 
+# perpetrators_df <- rbind (perpetrators_df, df_1 %>%
+#                             select(Q106, Q107,`Q109/Smugglers`:`Q109/Refused`) %>%
+#                             select(-matches("_1"), -c(`Q109/Refused`, `Q109/Other`)) %>%
+#                             pivot_longer(cols = -c(Q106, Q107),  # Pivot all except Q98 and Q99
+#                                          values_to = "perpetrators") %>%
+#                             rename(
+#                               Q98 = Q106,
+#                               Q99 = Q107)%>%
+#                             filter(if_all(c(perpetrators,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# 
+# #aggregating fourth stop with location and likely perpetrators
+# 
+# 
+# perpetrators_df <- rbind (perpetrators_df, df_1 %>%
+#                             select(Q110, Q111,`Q113/Smugglers`:`Q113/Refused`) %>%
+#                             select(-matches("_1"), -c(`Q113/Refused`, `Q113/Other`)) %>%
+#                             pivot_longer(cols = -c(Q110, Q111),  # Pivot all except Q98 and Q99
+#                                          values_to = "perpetrators") %>%
+#                             rename(
+#                               Q98 = Q110,
+#                               Q99 = Q111)%>%
+#                             filter(if_all(c(perpetrators,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# #aggregating fifth stop with location and likely perpetrators
+# 
+# perpetrators_df <- rbind (perpetrators_df, df_1 %>%
+#                             select(Q114, Q115,`Q117/Smugglers`:`Q117/Refused`) %>%
+#                             select(-matches("_1"), -c(`Q117/Refused`, `Q117/Other`)) %>%
+#                             pivot_longer(cols = -c(Q114, Q115),  # Pivot all except Q98 and Q99
+#                                          values_to = "perpetrators") %>%
+#                             rename(
+#                               Q98 = Q114,
+#                               Q99 = Q115)%>%
+#                             filter(if_all(c(perpetrators,  Q99), ~ !is.na(.) & . != "None" & . != "Other")) %>%
+#                             select(-name))
+# 
+# perpetrators_df <- rename(perpetrators_df,
+#                           Country = Q98,
+#                           Location = Q99) 
+# 
+# 
+# #Compute frequencies for  likely perpetrators for each country
+# perpetrators_df %>%
+#   group_by(Country, Location, perpetrators) %>%
+#   summarize(frequency = n(), .groups = 'drop') %>%
+#   arrange(desc(frequency)) %>%
+#   group_by(Country) %>%
+#   slice_max(order_by = frequency, n = 5, with_ties = FALSE) %>%  # Ensure only the top 5 per country
+#   mutate(percent = frequency /1715)%>% 
+#   adorn_pct_formatting(column = "percent")%>%
+#   knitr::kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+#                 full_width = FALSE, 
+#                 position = "left") %>%
+#   add_header_above(header = c("Top 5 likely perpetrators per country", "", "","", "N= 1715"), align = "l")
+```
+
+## Q118 - Have you personally experienced any of these types of incidents on your journey?
+
+```{r}
+df_1 %>%
+  select(`Q118/Witnessed death`: `Q118/None`)%>%
+  pivot_longer(cols = everything(), values_to = "experienced_incidents")%>%
+  select(-name)%>%
+  tabyl(experienced_incidents, show_na = FALSE)%>%
+  arrange(desc(n))%>%
+  mutate(percent = n / 1170)%>%
+  adorn_pct_formatting( column = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Experienced incidents", "", "N = 1170"),align = "l")
+
+
+tabyl_ref <- df_1 %>%
+  select(Q133, Q27,`Q118/Witnessed death`: `Q118/None`)%>%
+  pivot_longer(cols = -c(Q133,Q27), values_to = "experienced_incidents")%>%
+  select(-name)
+
+tabyl_result <- tabyl_ref %>%
+  tabyl(show_na = FALSE,experienced_incidents,Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Experienced incidents ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Experienced incidents ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+N = are the people that were asked this question
+
+## Q123 - Did you receive assistance along the way?
+
+```{r}
+df_1 %>%
+  tabyl(Q123)%>%
+  arrange(desc(n))%>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Did you receive assistance along the way?","", ""),align = "l")
+
+
+tabyl_result <- df_1 %>%
+  tabyl(show_na = FALSE,Q123,Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Received assistance? ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Received assistance? ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q124 - What kind of assistance did you receive?
+
+```{r}
+df_1 %>%
+  select(`Q124/Shelter`: `Q124/Access to work`)%>%
+  pivot_longer(cols = everything(), values_to = "assistance_received")%>%
+  select(-name)%>%
+  tabyl(assistance_received, show_na = FALSE)%>%
+  mutate(percent = n / 1387)%>%
+  arrange(desc(n))%>%
+  adorn_pct_formatting(column = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Received assistance", "", "N= 1387"),align = "l")
+
+
+tabyl_ref <- df_1 %>%
+  select(Q133, Q27,`Q124/Shelter`: `Q124/Access to work`)%>%
+  pivot_longer(cols = -c(Q133,Q27), values_to = "assistance_received")%>%
+  select(-name)
+
+tabyl_result <- tabyl_ref %>%
+  tabyl(show_na = FALSE,assistance_received,Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Received assistance ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Received assistance ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q125 - Who did you receive assistance from?
+
+```{r}
+df_1 %>%
+  select(`Q125/The government`: `Q125/Smugglers`)%>%
+  pivot_longer(cols = everything(), values_to = "assistance_provider")%>%
+  select(-name)%>%
+  tabyl(assistance_provider, show_na = FALSE)%>%
+  mutate(percent = n / 1387)%>%
+  arrange(desc(n))%>%
+  #adorn_totals()%>%
+  adorn_pct_formatting(column = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Assitance providers", "", "N= 1387"),align = "l")
+
+tabyl_ref <- df_1 %>%
+  select(Q133, Q27,`Q125/The government`: `Q125/Smugglers`)%>%
+  pivot_longer(cols = -c(Q133,Q27), values_to = "assistance_provider")%>%
+  select(-name)
+
+tabyl_result <- tabyl_ref %>%
+  tabyl(show_na = FALSE,assistance_provider,Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Assitance providers ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Assitance providers ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q129 - Do you need more assistance now?
+
+```{r}
+df_1 %>% 
+  tabyl(Q129, show_na = FALSE) %>%
+  arrange(desc(n))%>%
+  adorn_totals(where = "row")%>%
+  adorn_pct_formatting() %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Need for assistance currently", "", ""),align = "l")
+
+
+tabyl_result <- df_1 %>%
+  tabyl(show_na = FALSE, Q129, Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Need for assistance currently ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Need for assistance currently ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## Q130 - What kind of assistance do you need?
+
+```{r}
+df_1 %>%
+  select(`Q130/Shelter`: `Q130/Access to work`)%>%
+  pivot_longer(cols = everything(), values_to = "assistance_needs")%>%
+  select(-name)%>%
+  tabyl(assistance_needs, show_na = FALSE)%>%
+  mutate(percent = n / 2338)%>%
+  arrange(desc(n))%>%
+  #adorn_totals()%>%
+  adorn_pct_formatting(column = "percent") %>%
+  knitr :: kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = TRUE, 
+                position = "left")%>%
+  add_header_above(header = c("Type of assistance needed currently", "", "N= 2338"),align = "l")
+
+tabyl_ref <- df_1 %>%
+  select(Q133, Q27,`Q130/Shelter`: `Q130/Access to work`)%>%
+  pivot_longer(cols = -c(Q133,Q27), values_to = "assistance_needs")%>%
+  select(-name)
+
+tabyl_result <- tabyl_ref %>%
+  tabyl(show_na = FALSE,assistance_needs,Q133, Q27) %>%
+  lapply(function(df) arrange(df, desc(Yes + No)))%>%
+  adorn_totals(where =c("row", "col"))
+
+
+# Format the Female table
+female_table <- tabyl_result$Female %>%  
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Type of assistance needed currently ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Female Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+# Format the Male table
+male_table <- tabyl_result$Male %>%
+  adorn_percentages(denominator = "col") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns(position = "front")%>%
+  adorn_title(row_name = "Type of assistance needed currently ", col_name = " Smuggler use", "combined") %>%
+  knitr::kable(caption = "Male Respondents", format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+                full_width = FALSE, 
+                position = "left")
+
+male_table
+female_table
+```
+
+## CANCELLED
+
+### Q126/Q127 - Places where assistance was needed the most and not received
+
+```{r}
+
+# df_1 %>%
+#   select(Q14,Q127)%>%
+#   filter(!(is.na(Q127)))%>%
+#   group_by(Q14,Q127)%>%
+#   summarize(frequency = n())%>%
+#   arrange(desc(frequency))%>%
+#   
+#   tabyl(show_na = FALSE, Q127,Q14)
+  
+
+
+
+# df_1 %>%
+#   select(Q126, Q127)%>%
+#   filter(Q126 != "None")%>%
+#   group_by(Q126,Q127)%>%
+#   summarize( frequency = n())%>%
+#   arrange(desc(frequency))%>%
+#   adorn_totals(where = "row")%>%
+#   mutate(percent = frequency / 1019)%>%
+#   adorn_pct_formatting(column = "percent")%>%
+#   knitr :: kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), 
+#                 full_width = TRUE, 
+#                 position = "left")%>%
+#   add_header_above(header = c("Places where assistance \n was needed the most and not received", "", "removed NAs",""),align = "l")
+```
+
+### Q128: Most needed assistance en route
+
+```{r}
+# df_1 %>%
+#   select(`Q128/Shelter`: `Q128/Refused`)%>%
+#   select(-`Q128/Other`)%>%
+#   pivot_longer(cols = everything(), values_to = "most_needed_assistance")%>%
+#   select(-name)%>%
+#   tabyl(most_needed_assistance, show_na = FALSE)%>%
+#   arrange(desc(n))%>%
+#   adorn_totals()%>%
+#   adorn_pct_formatting() %>%
+#   knitr :: kable() %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+#                 full_width = TRUE,
+#                 position = "left")%>%
+#   add_header_above(header = c("Most needed assistance en route", "", ""),align = "l")
+```
